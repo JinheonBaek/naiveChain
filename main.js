@@ -3,7 +3,6 @@ var CryptoJS = require("crypto-js");
 var express = require("express");
 var bodyParser = require('body-parser');
 var WebSocket = require("ws");
-//hexToBinary library
 var hexToBinary = require("./hexToBinary");
 
 
@@ -11,7 +10,6 @@ var http_port = process.env.HTTP_PORT || 3001;
 var p2p_port = process.env.P2P_PORT || 6001;
 var initialPeers = process.env.PEERS ? process.env.PEERS.split(',') : [];
 
-// difficulty, nonce
 class Block {
     constructor(index, previousHash, timestamp, data, hash, difficulty, nonce) {	
         this.index = index;
@@ -33,7 +31,7 @@ var MessageType = {
 
 // construtor added , set difficulty =4
 var getGenesisBlock = () => {
-    return new Block(0, "0", 1465154705, "my genesis block!!", "816534932c2b7154836da6afc367695e6337db8a921823784c14378abed4f7d7",4,0);
+    return new Block(0, "0", 1465154705, "my genesis block!!", "816534932c2b7154836da6afc367695e6337db8a921823784c14378abed4f7d7", 4, 0);
 };
 
 var blockchain = [getGenesisBlock()];
@@ -102,18 +100,13 @@ var initErrorHandler = (ws) => {
     ws.on('error', () => closeConnection(ws));
 };
 
-// modified function
 var generateNextBlock = (blockData) => {
     var previousBlock = getLatestBlock();
     var nextIndex = previousBlock.index + 1;
     var nextTimestamp = new Date().getTime() / 1000;
 	var nextDifficulty = previousBlock.difficulty;
 	return findBlock(nextIndex, previousBlock.hash, nextTimestamp, blockData, nextDifficulty);
-    //var nextHash = calculateHash(nextIndex, previousBlock.hash, nextTimestamp, blockData);
-    //return new Block(nextIndex, previousBlock.hash, nextTimestamp, blockData, nextHash);
 };
-
-//new functions
 
 var findBlock = (index, previousHash, timestamp, data, difficulty) => {
 	var nonce = 0;
@@ -142,7 +135,6 @@ var calculateHashForBlock = (block) => {
     return calculateHash(block.index, block.previousHash, block.timestamp, block.data, block.difficulty, block.nonce);
 };
 
-//modified function
 var calculateHash = (index, previousHash, timestamp, data, difficulty, nonce) => {
     return CryptoJS.SHA256(index + previousHash + timestamp + data + difficulty + nonce).toString();
 };
@@ -153,7 +145,6 @@ var addBlock = (newBlock) => {
     }
 };
 
-//modified function
 var isValidNewBlock = (newBlock, previousBlock) => {
     if (previousBlock.index + 1 !== newBlock.index) {
         console.log('invalid index');
