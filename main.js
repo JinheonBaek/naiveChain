@@ -29,9 +29,8 @@ var MessageType = {
     RESPONSE_BLOCKCHAIN: 2
 };
 
-// construtor added , set difficulty =4
 var getGenesisBlock = () => {
-    return new Block(0, "0", 1465154705, "my genesis block!!", "816534932c2b7154836da6afc367695e6337db8a921823784c14378abed4f7d7", 4, 0);
+    return new Block(0, "0", 1465154705, "my genesis block!!", "816534932c2b7154836da6afc367695e6337db8a921823784c14378abed4f7d7", 15, 0);
 };
 
 var blockchain = [getGenesisBlock()];
@@ -42,10 +41,12 @@ var initHttpServer = () => {
 
     app.get('/blocks', (req, res) => res.send(JSON.stringify(blockchain)));
     app.post('/mineBlock', (req, res) => {
-        var newBlock = generateNextBlock(req.body.data);
-        addBlock(newBlock);
-        broadcast(responseLatestMsg());
-        console.log('block added: ' + JSON.stringify(newBlock));
+        for (let i = 0; i < 10; i++) {
+            var newBlock = generateNextBlock(req.body.data);
+            addBlock(newBlock);
+            broadcast(responseLatestMsg());
+            console.log('block added: ' + JSON.stringify(newBlock));    
+        }
         res.send();
     });
     app.get('/peers', (req, res) => {
@@ -104,9 +105,17 @@ var generateNextBlock = (blockData) => {
     var previousBlock = getLatestBlock();
     var nextIndex = previousBlock.index + 1;
     var nextTimestamp = new Date().getTime() / 1000;
-	var nextDifficulty = previousBlock.difficulty;
+	var nextDifficulty = findDifficlty(previousBlock.timestamp, nextTimestamp, previousBlock.difficulty);
 	return findBlock(nextIndex, previousBlock.hash, nextTimestamp, blockData, nextDifficulty);
 };
+
+var findDifficlty = (previousTimestamp, timestamp, previousDifficulty) => {
+    if (timestamp - previousTimestamp >= 10) {
+        return previousDifficulty - 1;
+    } else {
+        return previousDifficulty + 1;
+    }
+}
 
 var findBlock = (index, previousHash, timestamp, data, difficulty) => {
 	var nonce = 0;
@@ -236,9 +245,6 @@ var responseLatestMsg = () => ({
 
 var write = (ws, message) => ws.send(JSON.stringify(message));
 var broadcast = (message) => sockets.forEach(socket => write(socket, message));
-
-
-
 
 connectToPeers(initialPeers);
 initHttpServer();
