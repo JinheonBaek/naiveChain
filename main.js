@@ -5,20 +5,27 @@ var bodyParser = require('body-parser');
 var WebSocket = require("ws");
 var hexToBinary = require("./hexToBinary");
 
+var ellip = require('elliptic');
+var el = ellip.ec('secp256k1');
+var keyPair = el.genKeyPair();
+var privateKey = keyPair.getPrivate().toString(16);
+var publicKey = keyPair.getPublic();
+var address = CryptoJS.SHA256(publicKey).toString();
 
 var http_port = process.env.HTTP_PORT || 3001;
 var p2p_port = process.env.P2P_PORT || 6001;
 var initialPeers = process.env.PEERS ? process.env.PEERS.split(',') : [];
 
 class Block {
-    constructor(index, previousHash, timestamp, data, hash, difficulty, nonce) {	
+    constructor(index, previousHash, timestamp, data, hash, difficulty, nonce, miner) {	
         this.index = index;
         this.previousHash = previousHash.toString();
         this.timestamp = timestamp;
         this.data = data;
         this.hash = hash.toString();
 		this.difficulty = difficulty; 
-		this.nonce = nonce; 
+        this.nonce = nonce;
+        this.miner = miner;
     }
 }
 
@@ -30,16 +37,28 @@ var MessageType = {
 };
 
 var getGenesisBlock = () => {
-    return new Block(0, "0", 1465154705, "my genesis block!!", "816534932c2b7154836da6afc367695e6337db8a921823784c14378abed4f7d7", 15, 0);
+    return new Block(0, "0", 1465154705, "my genesis block!!", "816534932c2b7154836da6afc367695e6337db8a921823784c14378abed4f7d7", 4, 0, address);
 };
 
 var blockchain = [getGenesisBlock()];
+
+var getChainCount = (address) => {
+    var count = 0;
+
+    blockchain.forEach(element => {
+        if (element.miner == address) {
+            count = count + 1;
+        }
+    });
+
+    return count * 10;
+}
 
 var initHttpServer = () => {
     var app = express();
     app.use(bodyParser.json());
 
-    app.get('/blocks', (req, res) => res.send(JSON.stringify(blockchain)));
+    app.get('/blocks', (req, res) => res.send(blockchain));
     app.post('/mineBlock', (req, res) => {
         for (let i = 0; i < 10; i++) {
             var newBlock = generateNextBlock(req.body.data);
@@ -49,6 +68,7 @@ var initHttpServer = () => {
         }
         res.send();
     });
+    app.get('/balance', (req, res) => res.send(JSON.stringify(getChainCount(req.query.address))));
     app.get('/peers', (req, res) => {
         res.send(sockets.map(s => s._socket.remoteAddress + ':' + s._socket.remotePort));
     });
@@ -122,7 +142,7 @@ var findBlock = (index, previousHash, timestamp, data, difficulty) => {
 	while (true) {
 		var hash = calculateHash(index, previousHash, timestamp, data, difficulty, nonce);
 		if (hashMatchesDifficulty(hash, difficulty)){
-			return new Block(index, previousHash, timestamp, data, hash,difficulty, nonce);
+			return new Block(index, previousHash, timestamp, data, hash,difficulty, nonce, address);
 		}
 		nonce++;
 	}
